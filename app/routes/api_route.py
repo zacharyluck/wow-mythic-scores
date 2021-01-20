@@ -5,6 +5,7 @@ import gspread
 import os
 import requests
 from dotenv import load_dotenv
+from datetime import datetime
 
 # set up route
 api_route = Blueprint('api_route', __name__)
@@ -23,15 +24,19 @@ RAIDERAPI_URL = "https://raider.io/api/v1/characters/profile?region={0}&realm={1
 def mainfunc():
     # main func
     # pull data from spreadsheet
-    # don't know how many names there are, gotta do a while loop
-    # start from row 2
-    cur = 2
-    curname = sh.sheet1.get('A'+str(cur))[0][0]
-    while curname is not "":
+    # get num of players in spreadsheet
+    print(f'Updating spreadsheet: {os.getenv("SPREADSHEET_NAME")}')
+    num_players = int(sh.sheet1.get('I2')[0][0])
+    print(f'Updating {num_players} players...')
+    info_in = sh.sheet1.get('A2:B'+str(1+num_players))
+    # set up an output array
+    info_out = []
+    for player in info_in:
+        print(f'Pulling data for {player[0]}...')
         cururl = RAIDERAPI_URL.format(
             os.getenv("REGION_NAME"),
-            os.getenv("REALM_NAME"),
-            curname
+            player[1],
+            player[0]
         )
         r = requests.get(cururl)
         json = r.json()
@@ -40,23 +45,19 @@ def mainfunc():
         if 'gear' in json:
             gear_score = json['gear']['item_level_equipped']
         else:
-            gear_score = 'Not Found'
+            gear_score = 'Data'
         if 'mythic_plus_scores_by_season' in json:
             dps_score = json['mythic_plus_scores_by_season'][0]['scores']['dps']
             heal_score = json['mythic_plus_scores_by_season'][0]['scores']['healer']
             tank_score = json['mythic_plus_scores_by_season'][0]['scores']['tank']
         else:
-            dps_score = 'Not Found'
-            heal_score = 'Not Found'
-            tank_score = 'Not Found'
+            dps_score = 'is'
+            heal_score = 'entered'
+            tank_score = 'incorrectly.'
 
-        sh.sheet1.update('B'+str(cur), gear_score)
-        sh.sheet1.update('C'+str(cur), dps_score)
-        sh.sheet1.update('D'+str(cur), heal_score)
-        sh.sheet1.update('E'+str(cur), tank_score)
+        info_out.append([gear_score, dps_score, tank_score, heal_score])
 
-        # increment loop counter, get new name to check
-        cur += 1
-        curname = sh.sheet1.get('A'+str(cur))[0][0]
+    # should have completed data to input into spreadsheet
+    sh.sheet1.update('C2:F'+str(1+num_players), info_out)
 
-    return 'Spreadsheet Updated.'
+    return f'Spreadsheet updated at {datetime.now(tz=None)}'
