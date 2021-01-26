@@ -1,1 +1,1 @@
-web: python apstest.py
+web: gunicorn "app:create_app()"

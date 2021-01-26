@@ -1,4 +1,4 @@
-# main flask app script
+# APScheduler test file
 
 from apscheduler.schedulers.blocking import BlockingScheduler
 import gspread
@@ -39,7 +39,7 @@ def mainfunc():
     result = urlparse(DB_URL)
     username = result.username
     password = result.password
-    database = username
+    database = result.path[1:]
     hostname = result.hostname
 
     # start connection and grab google credential data
