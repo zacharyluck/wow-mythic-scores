@@ -145,7 +145,6 @@ def create_app():
     scheduler = BackgroundScheduler()
     scheduler.add_job(mainfunc, 'cron', minute=0)
     print('Press Ctrl+{0} to exit'.format('Break' if os.name == 'nt' else 'C'))
-    mainfunc()
     scheduler.start()
 
     # set up flask app
