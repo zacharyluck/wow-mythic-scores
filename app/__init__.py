@@ -11,8 +11,55 @@ from urllib.parse import urlparse
 import json as js
 from flask import Flask
 
-# import Flask app routes
-from app.routes.api_route import api_route
+# connect to SQL server to load env vars
+DB_URL = os.environ.get("SQL_URL")
+# this is probably mega illegal and bad code
+if not DB_URL:
+    from dotenv import load_dotenv
+    load_dotenv()
+    DB_URL = os.getenv('SQL_URL')
+
+# unpack URI to SQL server
+result = urlparse(DB_URL)
+
+# start connection and grab google credential data
+conn = psycopg2.connect(
+    dbname=result.path[1:],
+    user=result.username,
+    password=result.password,
+    host=result.hostname
+)
+print('Connection opened to SQL server.')
+cur = conn.cursor()
+cur.execute(
+    '''
+    SELECT *
+    FROM googlecreds
+    '''
+)
+creds = cur.fetchone()[0]
+
+# check if the google creds file already exists (heroku is ephemeral)
+if os.path.exists('sa_creds.json'):
+    # check to see if the file is accurate
+    with open('sa_creds.json', 'r') as f:
+        data = f.read()
+    try:
+        data_json = js.loads(data)
+    except:
+        # something really bad happens when opening the file
+        data_json = None
+    if data_json != creds:
+        os.remove('sa_creds.json')
+# check again if file was deleted then create a new one if so
+if not os.path.exists('sa_creds.json'):
+    with open('sa_creds.json', 'w') as outfile:
+        js.dump(creds, outfile)
+
+# connect to spreadsheet via gspread
+gc = gspread.service_account(filename="sa_creds.json")
+print('Connection closed to SQL server.')
+conn.close()
 
 
 def mainfunc():
@@ -31,57 +78,16 @@ def mainfunc():
         this is used to both access the spreadsheet itself but also
         will be split into important info via str.split()
     '''
-    # connect to SQL server to load env vars
-    DB_URL = os.environ.get("SQL_URL")
-    # this is probably mega illegal and bad code
-    if not DB_URL:
-        from dotenv import load_dotenv
-        load_dotenv()
-        DB_URL = os.getenv('SQL_URL')
 
-    # unpack URI to SQL server
-    result = urlparse(DB_URL)
-    username = result.username
-    password = result.password
-    database = result.path[1:]
-    hostname = result.hostname
-
-    # start connection and grab google credential data
+    # connect to SQL
     conn = psycopg2.connect(
-        dbname=database,
-        user=username,
-        password=password,
-        host=hostname
+        dbname=result.path[1:],
+        user=result.username,
+        password=result.password,
+        host=result.hostname
     )
     print('Connection opened to SQL server.')
     cur = conn.cursor()
-    cur.execute(
-        '''
-        SELECT *
-        FROM googlecreds
-        '''
-    )
-    creds = cur.fetchone()[0]
-
-    # check if the google creds file already exists (heroku is ephemeral)
-    if os.path.exists('sa_creds.json'):
-        # check to see if the file is accurate
-        with open('sa_creds.json', 'r') as f:
-            data = f.read()
-        try:
-            data_json = js.loads(data)
-        except:
-            # something really bad happens when opening the file
-            data_json = None
-        if data_json != creds:
-            os.remove('sa_creds.json')
-    # check again if file was deleted then create a new one if so
-    if not os.path.exists('sa_creds.json'):
-        with open('sa_creds.json', 'w') as outfile:
-            js.dump(creds, outfile)
-
-    # connect to spreadsheet via gspread
-    gc = gspread.service_account(filename="sa_creds.json")
 
     # start by grabbing spreadsheet names from SQL
     cur.execute(
@@ -138,6 +144,8 @@ def mainfunc():
     conn.close()
     print('Connection closed to SQL server')
 
+# import Flask app routes
+from app.routes.api_route import api_route
 
 def create_app():
     # app creating func for gunicorn
@@ -156,6 +164,7 @@ def create_app():
 
 # static raider.io API link
 RAIDERAPI_URL = "https://raider.io/api/v1/characters/profile?region={0}&realm={1}&name={2}&fields=gear%2Cmythic_plus_scores_by_season%3Acurrent"
+
 
 
 if __name__ == '__main__':

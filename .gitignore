@@ -2,3 +2,6 @@ __pycache__/
 .vscode/
 .env
 sa_creds.json
+node_modules/
+package-lock.json
+.eslintrc.json

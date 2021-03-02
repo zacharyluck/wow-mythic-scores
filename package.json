@@ -1,0 +1,36 @@
+{
+  "name": "wow-mythic-scores",
+  "version": "1.0.0",
+  "description": "discord bot that tracks your mythic score via raider.io",
+  "main": "index.js",
+  "dependencies": {
+    "axios": "^0.21.1",
+    "discord.js": "^12.5.1",
+    "dotenv": "^8.2.0",
+    "eslint": "^7.18.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zacharyluck/wow-mythic-scores.git"
+  },
+  "keywords": [
+    "wow",
+    "warcraft",
+    "mythic",
+    "discord",
+    "discord-bot",
+    "python",
+    "nodejs",
+    "discordjs"
+  ],
+  "author": "Zachary Luck",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/zacharyluck/wow-mythic-scores/issues"
+  },
+  "homepage": "https://github.com/zacharyluck/wow-mythic-scores#readme"
+}
