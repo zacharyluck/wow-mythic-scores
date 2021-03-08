@@ -56,14 +56,17 @@ def link_route():
     data = cur.fetchone()
     # if sheet is already in SQL
     if data:
-        # close connection to SQL server first since we don't need it anymore
+        if data == discord_id:
+            # if the ID is already in SQL, update it instead of inserting
+            query = 'UPDATE spreadsheets SET sheet_name = %s WHERE discord_name = %s'
+            cur.execute(query, (sheet_id, discord_id))
+            conn.commit()
+            conn.close()
+            return Response('Success', status=200)
+        # if the server isn't the same
         conn.close()
         print('Connection closed to SQL server')
         data = data[0]
-        # if associated discord is the same, 
-        if data == discord_id:
-            return Response('Same sheet', status=200)
-        # if it's not the same
         return Response('Already linked', status=200)
     # if sheet not found in SQL, create a new one
     query = 'INSERT INTO spreadsheets (sheet_name, discord_name) VALUES (%s, %s)'

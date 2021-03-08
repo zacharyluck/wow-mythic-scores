@@ -12,6 +12,9 @@ const client = new Discord.Client();
 // set prefix for bot to recognize
 const prefix = '!wowmst';
 
+// pre-set region list
+const regions = ['us', 'eu', 'kr', 'tw', 'cn'];
+
 let server_url;
 let cli_args = '';
 
@@ -109,35 +112,47 @@ Otherwise, \`!wowmst link whatis\` will tell you the current name of the spreads
         }
         // link new spreadsheet
         else {
-            // send the get request
-            axios.get(server_url + 'link', {
-                params: {
-                    sheet: args[0],
-                    id: message.guild.id.toString(),
-                    token: process.env.TOKEN,
-                },
-            })
-            .then(res => {
-                if (res.data === 'Success') {
-                    // successful response
-                    return message.channel.send('Spreadsheet linked, your spreadsheet will now automatically update.');
+            // check to make sure the name is formatted correctly
+            if (args[0].split('_').length === 3) {
+                // check to make sure the region is one that exists
+                const region = args[0].split('_')[0].toLowerCase();
+                if (regions.indexOf(region) > -1) {
+                    // send the get request
+                    axios.get(server_url + 'link', {
+                        params: {
+                            sheet: args[0],
+                            id: message.guild.id.toString(),
+                            token: process.env.TOKEN,
+                        },
+                    })
+                    .then(res => {
+                        if (res.data === 'Success') {
+                            // successful response
+                            return message.channel.send('Spreadsheet linked, your spreadsheet will now automatically update.');
+                        }
+                        else if (res.data === 'Already linked') {
+                            // spreadsheet specified is already linked in a different server
+                            return message.channel.send('This spreadsheet is already linked in a different server.');
+                        }
+                        else if (res.data === 'Same sheet') {
+                            // this sheet is already linked to this server
+                            return message.channel.send('This spreadsheet is already linked here, you\'re good to go!');
+                        }
+                        else {
+                            // just in case the API 403s or 500s
+                            return message.channel.send('Something went horribly wrong. The bot is probably down.');
+                        }
+                    })
+                    .catch(err => {
+                        console.log(err);
+                    });
                 }
-                else if (res.data === 'Already linked') {
-                    // spreadsheet specified is already linked in a different server
-                    return message.channel.send('This spreadsheet is already linked in a different server.');
-                }
-                else if (res.data === 'Same sheet') {
-                    // this sheet is already linked to this server
-                    return message.channel.send('This spreadsheet is already linked here, you\'re good to go!');
-                }
-                else {
-                    // just in case the API 403s or 500s
-                    return message.channel.send('Something went horribly wrong. The bot is probably down.');
-                }
-            })
-            .catch(err => {
-                console.log(err);
-            });
+                // region is not correct
+                return message.channel.send('The region in your spreadsheet name is incorrect, did you type it properly?');
+            }
+            // name is not formatted properly
+            return message.channel.send(`Your spreadsheet name is not formatted properly.
+Remember, it needs be in the format: \`[Region]_[Realm]_[Guild name]\``);
         }
     }
 
