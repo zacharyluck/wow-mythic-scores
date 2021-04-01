@@ -100,16 +100,21 @@ def mainfunc():
     for sheet in sheets:
         sheet = sheet[0]  # detuple
         sh = gc.open(sheet)
-        region, realm, clan = sheet.split('_')  # grab info from name
-        print(
-            f'Updating spreadsheet for clan {clan} in realm {realm} at {datetime.now(tz=None)}')
-        num_players = int(sh.sheet1.get('I2')[0][0])
+        print(f'Updating spreadsheet {sheet} at {datetime.now(tz=None)}')
+        metadata = sh.sheet1.get('I2:I3')
+        num_players = int(metadata[0][0])
+        region = metadata[1][0]
         print(f'Updating {num_players} players...')
         info_in = sh.sheet1.get('A2:B'+str(1+num_players))
         # set up an output array
         info_out = []
+        clear_counter = 0
         for player in info_in:
-            print(f'Pulling data for {player[0]}...')
+            print(player)
+            # find and deal with blank spots in player names
+            if not player:
+                clear_counter += 1
+                continue
             cururl = RAIDERAPI_URL.format(
                 region,
                 player[1],
@@ -132,13 +137,15 @@ def mainfunc():
                 heal_score = 'entered'
                 tank_score = 'incorrectly.'
 
-            info_out.append([gear_score, dps_score, tank_score, heal_score])
+            info_out.append([player[0], player[1], gear_score, dps_score, tank_score, heal_score])
+        # add blank rows to fix player spaces
+        for n in range(clear_counter):
+            info_out.append(['', '', '', '', '', ''])
 
         # should have completed data to input into spreadsheet
-        sh.sheet1.update('C2:F'+str(1+num_players), info_out)
+        sh.sheet1.update('A2:F'+str(1+num_players), info_out)
 
-        print(
-            f'Spreadsheet {sheet} updated for clan {clan} of {realm} at {datetime.now(tz=None)}')
+        print(f'Spreadsheet {sheet} updated at {datetime.now(tz=None)}')
 
     # close connection after updating spreadsheets
     conn.close()
@@ -154,6 +161,7 @@ def create_app():
     scheduler.add_job(mainfunc, 'cron', minute=0)
     print('Press Ctrl+{0} to exit'.format('Break' if os.name == 'nt' else 'C'))
     scheduler.start()
+    mainfunc()
 
     # set up flask app
     app = Flask(__name__)
