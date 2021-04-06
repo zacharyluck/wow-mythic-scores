@@ -12,8 +12,8 @@ const client = new Discord.Client();
 // set prefix for bot to recognize
 const prefix = '!wowmst';
 
-// pre-set region list
-const regions = ['us', 'eu', 'kr', 'tw', 'cn'];
+// set list of roles for mythic+ that can be checked
+const roles = ['all', 'dps', 'healer', 'tank'];
 
 let server_url;
 let cli_args = '';
@@ -59,10 +59,11 @@ client.on('message', message => {
 
 2. Click "File" and click "Make a copy" to save the spreadsheet to your own Google Drive
 
-3. Rename the spreadsheet as follows: \`[Region]_[Realm]_[Guild name]\`
-ex: \`US_Garona_Noctum\`
+3. Rename the spreadsheet to whatever you want, so long as it's not something that already exists.
 
-4. Click "Share" and add as an editor the e-mail: \`wow-mst-sa@wow-mythic-score-tracker.iam.gserviceaccount.com\`
+4. Set your region within the spreadsheet in the Metadata section to the region you and your clan plays in, must be one of the following: US, EU, TW, KR, CN
+
+5. Click "Share" and add as an editor the e-mail: \`wow-mst-sa@wow-mythic-score-tracker.iam.gserviceaccount.com\`
 
 Once you've done all that, you should be able to run \`!wowmst link\``);
     }
@@ -112,58 +113,66 @@ Otherwise, \`!wowmst link whatis\` will tell you the current name of the spreads
         }
         // link new spreadsheet
         else {
-            // check to make sure the name is formatted correctly
-            if (args[0].split('_').length === 3) {
-                // check to make sure the region is one that exists
-                const region = args[0].split('_')[0].toLowerCase();
-                if (regions.indexOf(region) > -1) {
-                    // send the get request
-                    axios.get(server_url + 'link', {
-                        params: {
-                            sheet: args[0],
-                            id: message.guild.id.toString(),
-                            token: process.env.TOKEN,
-                        },
-                    })
-                    .then(res => {
-                        if (res.data === 'Success') {
-                            // successful response
-                            return message.channel.send('Spreadsheet linked, your spreadsheet will now automatically update.');
-                        }
-                        else if (res.data === 'Already linked') {
-                            // spreadsheet specified is already linked in a different server
-                            return message.channel.send('This spreadsheet is already linked in a different server.');
-                        }
-                        else if (res.data === 'Same sheet') {
-                            // this sheet is already linked to this server
-                            return message.channel.send('This spreadsheet is already linked here, you\'re good to go!');
-                        }
-                        else {
-                            // just in case the API 403s or 500s
-                            return message.channel.send('Something went horribly wrong. The bot is probably down.');
-                        }
-                    })
-                    .catch(err => {
-                        console.log(err);
-                    });
+            // sheet name is conscructed through join(), re-adding lost spaces.
+            axios.get(server_url + 'link', {
+                params: {
+                    sheet: args.join(' '),
+                    id: message.guild.id.toString(),
+                    token: process.env.TOKEN,
+                },
+            })
+            .then(res => {
+                if (res.data === 'Success') {
+                    // successful response
+                    return message.channel.send('Spreadsheet linked, your spreadsheet will now automatically update.');
                 }
-                // region is not correct
-                return message.channel.send('The region in your spreadsheet name is incorrect, did you type it properly?');
-            }
-            // name is not formatted properly
-            return message.channel.send(`Your spreadsheet name is not formatted properly.
-Remember, it needs be in the format: \`[Region]_[Realm]_[Guild name]\``);
+                else if (res.data === 'Already linked') {
+                    // spreadsheet specified is already linked in a different server
+                    return message.channel.send('This spreadsheet is already linked in a different server.');
+                }
+                else if (res.data === 'Same sheet') {
+                    // this sheet is already linked to this server
+                    return message.channel.send('This spreadsheet is already linked here, you\'re good to go!');
+                }
+                else {
+                    // just in case the API 403s or 500s
+                    return message.channel.send('Something went horribly wrong. The bot is probably down.');
+                }
+            })
+            .catch(err => {
+                console.log(err);
+            });
         }
     }
 
     // --------------------------------
     // get top 10 players for each role
     // --------------------------------
-    if (command === 'top10') {
+    if (command === 'top') {
+        if (!args.length) {
+            return message.channel.send(`Command usage:
+\`!wowmst top [role] [number]\`
+
+\`role\` can be any of: \`all\`, \`dps\`, \`healer\`, \`tank\`.
+\`number\` can be any number or \`all\` to display everyone on the spreadsheet.`);
+        }
+        if (args.length < 2) {
+            return message.channel.send('You haven\'t given enough info, try `!wowmst [role] [number]`.');
+        }
+        if (args[1] == 'all') {
+            args[1] = 9999;
+        }
+        else {
+            args[1] = Number(args[1]);
+        }
+        if (!roles.includes(args[0].toLowerCase())) {
+            return message.channel.send('You\'ve entered an incorrect role, please enter one of the following: all, dps, healer, tank.');
+        }
         axios.get(server_url + 'top10', {
             params: {
                 id: message.guild.id.toString(),
                 token: process.env.TOKEN,
+                num: args[1],
             },
         })
         .then(res => {
@@ -175,8 +184,31 @@ Remember, it needs be in the format: \`[Region]_[Realm]_[Guild name]\``);
                 // json returned but not an error code; success
                 // initialize some empty strings, these will hold the tables
                 console.log(res.data.metadata);
-                const out = { 'dps': '', 'tank': '', 'heal': '' };
-                const tables = ['dps', 'tank', 'heal'];
+                // only set up and print out the results we need
+                let out, tables;
+                args[0] = args[0].toLowerCase();
+                // set up vars based on role requested
+                if (args[0] == 'all') {
+                    out = { 'dps': '', 'tank': '', 'heal': '' };
+                    tables = ['dps', 'tank', 'heal'];
+                }
+                else if (args[0] == 'dps') {
+                    out = { 'dps': '' };
+                    tables = ['dps'];
+                }
+                else if (args[0] == 'tank') {
+                    out = { 'tank': '' };
+                    tables = ['tank'];
+                }
+                else if (args[0] == 'healer') {
+                    out = { 'heal': '' };
+                    tables = ['heal'];
+                }
+                else {
+                    // you shouldn't see this, should get caught earlier
+                    // but just in case
+                    return message.channel.send('Something went horribly wrong. The bot is probably down.');
+                }
                 const columns = ['rank', 'name', 'score'];
                 const widths = {};
                 tables.forEach(function(table) {
@@ -214,14 +246,31 @@ Remember, it needs be in the format: \`[Region]_[Realm]_[Guild name]\``);
                 });
                 console.log(widths);
                 console.log(out);
-                return message.channel.send(
-`DPS:
+                // various print returns based on role requested
+                if (args[0] == 'all') {
+                    return message.channel.send(`DPS:
 ${out.dps}
 Tank:
 ${out.tank}
 Healer:
-${out.heal}`,
-                );
+${out.heal}`);
+                }
+                else if (args[0] == 'dps') {
+                    return message.channel.send(`DPS:
+${out.dps}`);
+                }
+                else if (args[0] == 'tank') {
+                    return message.channel.send(`Tank:
+${out.tank}`);
+                }
+                else if (args[0] == 'healer') {
+                    return message.channel.send(`Healer:
+${out.heal}`);
+                }
+                else {
+                    // you shouldn't see this either, but just in case
+                    return message.channel.send('Something went horribly wrong. The bot is probably down.');
+                }
             }
             else {
                 // catch for incase the bot's down (hope this works)
@@ -246,7 +295,8 @@ Setup commands:
 \`!wowmst link\`: link a spreadsheet to be automatically updated and to use with the bot.
 
 Spreadsheet commands:
-\`!wowmst top10\`: get the top 10 players for each role from your linked spreadsheet.`);
+\`!wowmst top [role] [number]\`: get the top \`[number]\` players for \`[role]\`. Roles: dps, healer, tank, all; type "all" for number to get every player in the spreadsheet.
+ex: \`!wowmst top dps all\` will get a list of every player in the spreadsheet, sorted by DPS score.`);
     }
 });
 
