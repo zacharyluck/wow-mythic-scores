@@ -114,6 +114,7 @@ def top10_route():
     # get data from GET request in url
     discord_id = request.args['id']
     token = request.args['token']
+    num_to_pull = int(request.args['num'])
     # TODO: landing page if no args
     # make sure the user is actually the bot
     if token != DB_TOKEN:
@@ -182,8 +183,8 @@ def top10_route():
     dps_list.sort(reverse=True)
     tank_list.sort(reverse=True)
     heal_list.sort(reverse=True)
-    # grab the top X num of dudes (or however many if less/ties)
-    num = 10
+    # grab the top X num of dudes specified in 
+    num = num_to_pull
     if len(dps_list) > num:
         dps_list = dps_list[:num]
     if len(tank_list) > num:

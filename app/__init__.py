@@ -103,6 +103,12 @@ def mainfunc():
         print(f'Updating spreadsheet {sheet} at {datetime.now(tz=None)}')
         metadata = sh.sheet1.get('I2:I3')
         num_players = int(metadata[0][0])
+        # catch empty sheets and ignore them
+        if num_players == 0:
+            print(f'{sheet} is empty, skipping.')
+            # TODO: send a message to associated server
+            # tell them their spreadsheet is empty
+            continue
         region = metadata[1][0]
         print(f'Updating {num_players} players...')
         info_in = sh.sheet1.get('A2:B'+str(1+num_players))
@@ -161,7 +167,6 @@ def create_app():
     scheduler.add_job(mainfunc, 'cron', minute=0)
     print('Press Ctrl+{0} to exit'.format('Break' if os.name == 'nt' else 'C'))
     scheduler.start()
-    mainfunc()
 
     # set up flask app
     app = Flask(__name__)
