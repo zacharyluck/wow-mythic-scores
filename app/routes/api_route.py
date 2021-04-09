@@ -8,6 +8,7 @@ import os
 from urllib.parse import urlparse
 import gspread
 import json as js
+from string import capwords
 
 # grab env vars i'll need to save for later
 DB_URL = os.environ.get("SQL_URL")
@@ -143,7 +144,6 @@ def top10_route():
     from app import gc
     sh = gc.open(data)
     # get all data from sheet
-    region, _, _ = data.split('_')  # grab info from name
     print(f'Grabbing Top10 for discord {discord_id} at {datetime.now(tz=None)}')
     num_players = int(sh.sheet1.get('I2')[0][0])
     print(f'Grabbing {num_players} players...')
@@ -282,3 +282,65 @@ def top10_route():
     }
     # make sure the json is formatted correctly via dumps() and mimetype
     return Response(js.dumps(info_out), status=200, mimetype='application/json')
+
+
+@api_route.route('/add')
+def add_player():
+    # get data from GET request in url
+    discord_id = request.args['id']
+    token = request.args['token']
+    player_name = request.args['name']
+    player_realm = request.args['realm']
+    # TODO: landing page
+    # make sure the user is actually the bot
+    if token != DB_TOKEN:
+        return Response("You do not have permission to access this feature.\n\n403 FORBIDDEN", status=403)
+    # grab sheet name from SQL
+    conn = psycopg2.connect(
+        dbname=result.path[1:],
+        user=result.username,
+        password=result.password,
+        host=result.hostname
+    )
+    print('Connection opened to SQL server.')
+    cur = conn.cursor()
+    query = 'SELECT sheet_name FROM spreadsheets WHERE discord_name=%s'
+    cur.execute(query, (discord_id,))
+    data = cur.fetchone()
+    # close connection before returning to avoid leaks
+    conn.close()
+    print('Connection closed to SQL server')
+    if not data:
+        return Response('No link', status=200)
+    data = data[0]
+    # load up google account connection
+    from app import gc
+    sh = gc.open(data)
+    # get all data from sheet
+    print(f'Adding player to sheet: {data} for discord: {discord_id} at {datetime.now(tz=None)}')
+    num_players = int(sh.sheet1.get('I2')[0][0])
+    print(f'Grabbing {num_players} players...')
+    # grab every player and realm that player is in
+    info_in = sh.sheet1.get('A2:B'+str(1+num_players))
+    # lower-ize all the names and realm names to make them better compared
+    player_name = player_name.lower()
+    player_realm = player_realm.lower()
+    names = [player[0].lower() for player in info_in]
+    realms = [player[1].lower() for player in info_in]
+    try:
+        found_index = names.index(player_name)
+        if realms[found_index] == player_realm:
+            print('Player unsuccessfully added.')
+            return Response('Already linked', status=200)
+    except:
+        # name not in there, even in a different realm
+        pass
+    # insert name and realm into spreadsheet
+    row = str(num_players+2)
+    # title-ize the words for name and realm for looks
+    player_name = capwords(player_name)
+    player_realm = capwords(player_realm)
+    info_out = [[player_name, player_realm]]
+    sh.sheet1.update('A'+row+'B'+row, info_out)
+    print('Player successfully added.')
+    return Response('Success' status=200)

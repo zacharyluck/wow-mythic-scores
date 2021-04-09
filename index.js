@@ -282,6 +282,53 @@ ${out.heal}`);
         });
     }
 
+    // -----------------------------------------
+    // add command, add players to a spreadsheet
+    // -----------------------------------------
+    if (command === 'add') {
+        if (!args.length) {
+            return message.channel.send(`Command usage:
+\`!wowmst add [name] [realm]\`
+
+\`[name]\` is the name of the character.
+\`[realm]\` is the realm that character is in.`);
+        }
+        if (args.length < 2) {
+            message.channel.send('You haven\'t given enough info. Try `!wowmst add [name] [realm]`.');
+        }
+        const name = args[0];
+        const realm = args.slice(1).join(' ');
+        axios.get(server_url + 'add', {
+            params: {
+                id: message.guild.id.toString(),
+                token: process.env.TOKEN,
+                name: name,
+                realm: realm,
+            },
+        })
+        .then(res => {
+            if (res.data === 'Success') {
+                // successful response
+                return message.channel.send('Player added to spreadsheet. Their score should update soon.');
+            }
+            else if (res.data === 'Already linked') {
+                // Player is already on the spreadsheet.
+                return message.channel.send('That player\'s already on the spreadsheet.');
+            }
+            else if (res.data === 'No link') {
+                // Sheet doesn't exist yet.
+                return message.channel.send('You haven\'t linked a spreadsheet yet, have you set one up via `!wowmst new` and linked it with `!wowmst link` yet?');
+            }
+            else {
+                // just in case the API 403s or 500s
+                return message.channel.send('Something went horribly wrong. The bot is probably down.');
+            }
+        })
+        .catch(err => {
+            console.log(err);
+        });
+    }
+
     // -------------------------------
     // help command, list all commands
     // -------------------------------
