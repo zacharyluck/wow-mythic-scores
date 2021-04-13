@@ -146,7 +146,7 @@ def mainfunc():
             info_out.append([player[0], player[1], gear_score, dps_score, tank_score, heal_score])
         # add blank rows to fix player spaces
         for n in range(clear_counter):
-            info_out.append(['', '', '', '', '', ''])
+            info_out.append([None for x in range(6)])
 
         # should have completed data to input into spreadsheet
         sh.sheet1.update('A2:F'+str(1+num_players), info_out)

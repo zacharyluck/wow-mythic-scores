@@ -344,3 +344,67 @@ def add_player():
     sh.sheet1.update('A'+row+'B'+row, info_out)
     print('Player successfully added.')
     return Response('Success' status=200)
+
+@api_route.route('/delete')
+def add_player():
+    # get data from GET request in url
+    discord_id = request.args['id']
+    token = request.args['token']
+    player_name = request.args['name']
+    player_realm = request.args['realm']
+    # TODO: landing page
+    # make sure the user is actually the bot
+    if token != DB_TOKEN:
+        return Response("You do not have permission to access this feature.\n\n403 FORBIDDEN", status=403)
+    # grab sheet name from SQL
+    conn = psycopg2.connect(
+        dbname=result.path[1:],
+        user=result.username,
+        password=result.password,
+        host=result.hostname
+    )
+    print('Connection opened to SQL server.')
+    cur = conn.cursor()
+    query = 'SELECT sheet_name FROM spreadsheets WHERE discord_name=%s'
+    cur.execute(query, (discord_id,))
+    data = cur.fetchone()
+    # close connection before returning to avoid leaks
+    conn.close()
+    print('Connection closed to SQL server')
+    if not data:
+        return Response('No link', status=200)
+    data = data[0]
+    # load up google account connection
+    from app import gc
+    sh = gc.open(data)
+    # get all data from sheet
+    print(f'Removing player from sheet: {sheet} for discord: {discord_id} at {datetime.now(tz=None)}')
+    num_players = int(sh.sheet1.get('I2')[0][0])
+    print(f'Grabbing {num_players} players...')
+    # grab every player and realm that player is in
+    info_in = sh.sheet1.get('A2:B'+str(1+num_players))
+    # lower-ize all the names and realm names to make them better compared
+    player_name = player_name.lower()
+    player_realm = player_realm.lower()
+    info_lowerized = [[player[0].lower(), player[1].lower()] for player in info_in]
+    # check if the player is in the list
+    try:
+        # TODO figure out if I can cheat like this
+        found_index = info_lowerized.index([player_name, player_realm])
+    except:
+        # item not found
+        return Response('Not found', status=200)
+    # remove the player 
+    info_out = [player for player in info_lowerized if player[0] != player_name and player[1] != player_realm]
+    # re-capilatize player names and realms
+    info_out = [[capwords(player[0]), capwords(player[1])] for player in info_out]
+    # remove the last row's data
+    sh.sheet1.batch_update([{
+        'range': 'A2:B'+str(num_players),
+        'values': info_out,
+    }, {
+        'range': 'A'+str(1+num_players)+'F'+str(1+num_players),
+        'values': [None for x in range(6)]
+    }])
+    print('Player successfully removed.')
+    return Response('Success', status=200)
