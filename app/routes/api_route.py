@@ -319,34 +319,35 @@ def add_player():
     # get all data from sheet
     print(f'Adding player to sheet: {data} for discord: {discord_id} at {datetime.now(tz=None)}')
     num_players = int(sh.sheet1.get('I2')[0][0])
-    print(f'Grabbing {num_players} players...')
-    # grab every player and realm that player is in
-    info_in = sh.sheet1.get('A2:B'+str(1+num_players))
-    # lower-ize all the names and realm names to make them better compared
-    player_name = player_name.lower()
-    player_realm = player_realm.lower()
-    names = [player[0].lower() for player in info_in]
-    realms = [player[1].lower() for player in info_in]
-    try:
-        found_index = names.index(player_name)
-        if realms[found_index] == player_realm:
-            print('Player unsuccessfully added.')
-            return Response('Already linked', status=200)
-    except:
-        # name not in there, even in a different realm
-        pass
+    if (num_players > 0):
+        print(f'Grabbing {num_players} players...')
+        # grab every player and realm that player is in
+        info_in = sh.sheet1.get('A2:B'+str(1+num_players))
+        # lower-ize all the names and realm names to make them better compared
+        player_name = player_name.lower()
+        player_realm = player_realm.lower()
+        names = [player[0].lower() for player in info_in]
+        realms = [player[1].lower() for player in info_in]
+        try:
+            found_index = names.index(player_name)
+            if realms[found_index] == player_realm:
+                print('Player unsuccessfully added.')
+                return Response('Already linked', status=200)
+        except:
+            # name not in there, even in a different realm
+            pass
     # insert name and realm into spreadsheet
     row = str(num_players+2)
     # title-ize the words for name and realm for looks
     player_name = capwords(player_name)
     player_realm = capwords(player_realm)
     info_out = [[player_name, player_realm]]
-    sh.sheet1.update('A'+row+'B'+row, info_out)
+    sh.sheet1.update('A'+row+':B'+row, info_out)
     print('Player successfully added.')
-    return Response('Success' status=200)
+    return Response('Success', status=200)
 
 @api_route.route('/delete')
-def add_player():
+def del_player():
     # get data from GET request in url
     discord_id = request.args['id']
     token = request.args['token']
@@ -378,33 +379,33 @@ def add_player():
     from app import gc
     sh = gc.open(data)
     # get all data from sheet
-    print(f'Removing player from sheet: {sheet} for discord: {discord_id} at {datetime.now(tz=None)}')
+    print(f'Removing player from sheet: {data} for discord: {discord_id} at {datetime.now(tz=None)}')
     num_players = int(sh.sheet1.get('I2')[0][0])
-    print(f'Grabbing {num_players} players...')
-    # grab every player and realm that player is in
-    info_in = sh.sheet1.get('A2:B'+str(1+num_players))
-    # lower-ize all the names and realm names to make them better compared
-    player_name = player_name.lower()
-    player_realm = player_realm.lower()
-    info_lowerized = [[player[0].lower(), player[1].lower()] for player in info_in]
-    # check if the player is in the list
-    try:
-        # TODO figure out if I can cheat like this
-        found_index = info_lowerized.index([player_name, player_realm])
-    except:
-        # item not found
+    if (num_players > 0):
+        print(f'Grabbing {num_players} players...')
+        # grab every player and realm that player is in
+        info_in = sh.sheet1.get('A2:B'+str(1+num_players))
+        # lower-ize all the names and realm names to make them better compared
+        player_name = player_name.lower()
+        player_realm = player_realm.lower()
+        info_lowerized = [[player[0].lower(), player[1].lower()] for player in info_in]
+        # check if the player is in the list
+        try:
+            # TODO figure out if I can cheat like this
+            found_index = info_lowerized.index([player_name, player_realm])
+        except:
+            # item not found
+            return Response('Not found', status=200)
+        # remove the player 
+        info_out = [player for player in info_lowerized if player[0] != player_name or player[1] != player_realm]
+
+        # re-capilatize player names and realms
+        info_out = [[capwords(player[0]), capwords(player[1])] for player in info_out]
+        # remove the last row's data
+        sh.sheet1.update('A2:B'+str(num_players), info_out)
+        # clear end of list to remove repeating names
+        sh.values_clear('Sheet1!A'+str(1+num_players)+':F'+str(1+num_players))
+        print('Player successfully removed.')
+        return Response('Success', status=200)
+    else: # There are no players in the sheet
         return Response('Not found', status=200)
-    # remove the player 
-    info_out = [player for player in info_lowerized if player[0] != player_name and player[1] != player_realm]
-    # re-capilatize player names and realms
-    info_out = [[capwords(player[0]), capwords(player[1])] for player in info_out]
-    # remove the last row's data
-    sh.sheet1.batch_update([{
-        'range': 'A2:B'+str(num_players),
-        'values': info_out,
-    }, {
-        'range': 'A'+str(1+num_players)+'F'+str(1+num_players),
-        'values': [None for x in range(6)]
-    }])
-    print('Player successfully removed.')
-    return Response('Success', status=200)

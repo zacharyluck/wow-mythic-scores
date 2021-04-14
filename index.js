@@ -335,7 +335,7 @@ ${out.heal}`);
     if (command === 'delete') {
         if (!args.length) {
             return message.channel.send(`Command usage:
-\`!wowmst add [name] [realm]\`
+\`!wowmst delete [name] [realm]\`
 
 \`[name]\` is the name of the character.
 \`[realm]\` is the realm that character is in.`);
